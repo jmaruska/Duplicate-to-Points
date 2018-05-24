@@ -3,7 +3,7 @@
 
 # Referenced heavily from: https://github.com/boboman/Octonomous/blob/master/Octonomous.py
 # Referenced heavily from: https://github.com/tapnair/copyPaste/blob/master/copyPaste.py
-# Thank you, Patrick Rainsberry
+# Thank you, Patrick Rainsberry and Adam Kumpf!
 
 import adsk.core, traceback
 import adsk.fusion
