@@ -8,6 +8,11 @@
 import adsk.core, traceback
 import adsk.fusion
 
+panelId = 'SolidCreatePanel'
+commandIdOnPanel = 'DB2PButtonID'
+
+# global set of event handlers to keep them referenced for the duration of the command
+
 handlers = []
 
 
@@ -160,20 +165,26 @@ def run(context):
     try:
         app = adsk.core.Application.get()
         ui  = app.userInterface
-        if ui.commandDefinitions.itemById('DB2PButtonID'):
-            ui.commandDefinitions.itemById('DB2PButtonID').deleteMe()
+        if ui.commandDefinitions.itemById(commandIdOnPanel):
+            ui.commandDefinitions.itemById(commandIdOnPanel).deleteMe()
         # Get the CommandDefinitions collection.
-        cmdDefs = ui.commandDefinitions
-        FusionAddInButtonDef = cmdDefs.addButtonDefinition('DB2PButtonID', 'Duplicate Bodies to Points', 'Select a body, a reference point and all the destination points to pattern the body to.\n', './resources')
-        onAddInCreated = FusionAddInCreatedEventHandler()
-        FusionAddInButtonDef.commandCreated.add(onAddInCreated)
-        handlers.append(onAddInCreated)
-        # Find the "ADD-INS" panel for the solid and the surface workspaces.
-        solidPanel = ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
-        surfacePanel = ui.allToolbarPanels.itemById('SurfaceScriptsAddinsPanel')
-        # Add a button for the "Duplicate Bodies" command into both panels.
-        buttonControl1 = solidPanel.controls.addCommand(FusionAddInButtonDef, '', False)
-        buttonControl2 = surfacePanel.controls.addCommand(FusionAddInButtonDef, '', False)
+        commandDefinitions_ = ui.commandDefinitions
+        workspaces_ = ui.workspaces
+        modelingWorkspace_ = workspaces_.itemById('FusionSolidEnvironment')
+        toolbarPanels_ = modelingWorkspace_.toolbarPanels
+        toolbarPanel_ = toolbarPanels_.itemById(panelId) # add the new command under the CREATE panel
+        toolbarControlsPanel_ = toolbarPanel_.controls
+        toolbarControlPanel_ = toolbarControlsPanel_.itemById(commandIdOnPanel)
+        if not toolbarControlPanel_:
+            commandDefinitionPanel_ = commandDefinitions_.itemById(commandIdOnPanel)
+            if not commandDefinitionPanel_:
+                commandDefinitionPanel_ = commandDefinitions_.addButtonDefinition(commandIdOnPanel, 'Duplicate Bodies to Points', 'Select a body, a reference point and all the destination points to pattern the body to.\n', './resources')
+            onAddInCreated = FusionAddInCreatedEventHandler()
+            commandDefinitionPanel_.commandCreated.add(onAddInCreated)
+            # keep the handler referenced beyond this function
+            handlers.append(onAddInCreated)
+            toolbarControlPanel_ = toolbarControlsPanel_.addCommand(commandDefinitionPanel_)
+            toolbarControlPanel_.isVisible = True
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
@@ -184,19 +195,17 @@ def stop(context):
     try:
         app = adsk.core.Application.get()
         ui  = app.userInterface
-        if ui.commandDefinitions.itemById('DB2PButtonID'):
-            ui.commandDefinitions.itemById('DB2PButtonID').deleteMe()
-        if ui.commandDefinitions.itemById('PasteButtonID'):
-            ui.commandDefinitions.itemById('PasteButtonID').deleteMe()   
-        # Find the controls in the solid and surface panels and delete them.
-        solidPanel = ui.allToolbarPanels.itemById('SolidScriptsAddinsPanel')
-        cntrl = solidPanel.controls.itemById('DB2PButtonID')
+        if ui.commandDefinitions.itemById(commandIdOnPanel):
+            ui.commandDefinitions.itemById(commandIdOnPanel).deleteMe()   
+        # Find the controls in the solid panels and delete them.
+        workspaces_ = ui.workspaces
+        modelingWorkspace_ = workspaces_.itemById('FusionSolidEnvironment')
+        toolbarPanels_ = modelingWorkspace_.toolbarPanels
+        toolbarPanel_ = toolbarPanels_.itemById(panelId)
+        cntrl = toolbarPanel_.controls.itemById(commandIdOnPanel)
         if cntrl:
             cntrl.deleteMe()
-        surfacePanel = ui.allToolbarPanels.itemById('SurfaceScriptsAddinsPanel')
-        cntrl = surfacePanel.controls.itemById('DB2PButtonID')
-        if cntrl:
-            cntrl.deleteMe()
+
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
