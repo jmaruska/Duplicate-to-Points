@@ -8,36 +8,8 @@
 import adsk.core, traceback
 import adsk.fusion
 
-from os.path import expanduser
-import os
-
 handlers = []
 
-resultFilename = ''
-
-# Creates directory and returns file name for settings file
-def getFileName():
-    # Get Home directory
-    home = expanduser("~")
-    home += '/duplicateToPoint/'
-    # Create if doesn't exist
-    if not os.path.exists(home):
-        os.makedirs(home)
-    # Create file name in this path
-    copyPasteFileName = home  + 'duplicator.step'
-    return copyPasteFileName
-
-# Export an STL file of selection to local temp directory
-def exportFile(tempComponent, filename):
-    # Get the ExportManager from the active design.
-    app = adsk.core.Application.get()
-    design = app.activeProduct
-    exportMgr = design.exportManager
-    # Create export options for STL export    
-    stepOptions = exportMgr.createSTEPExportOptions(filename, tempComponent)
-    # Execute Export command
-    exportMgr.execute(stepOptions)
-    return filename
 
 # From a set of selected bodies, join them in a new component for passing around/saving/etc.
 def getTempComponentFromBodies(tempBodies):
@@ -91,15 +63,6 @@ def getInputs_DestPoints(inputs):
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
-def getInputs_UseSTEP(inputs):
-    try:
-        selection_input = inputs.itemById('isUsingSTEP')
-        return selection_input.value
-    except:
-        app = adsk.core.Application.get()
-        ui = app.userInterface
-        if ui:
-            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 # Define the event handler for when the add-in command is executed 
 # --> EXECUTE THE ADD-IN (i.e. the user has selected things; now actually perform the action to the CAD models using those inputs)
@@ -120,23 +83,11 @@ class FusionAddInExecutedEventHandler(adsk.core.CommandEventHandler):
             refPoint        = getInputs_RefPoint(inputs)
             destPoints      = getInputs_DestPoints(inputs)
             tempComponent   = getTempComponentFromBodies(selectedBodies)
-            useSTEP         = getInputs_UseSTEP(inputs)
-            print("Use STEP? ",useSTEP);
+
             # -----------------------
             # design.rootComponent is the ROOT, design.activeComponent is the selected/active component.
             #rootComp = design.rootComponent
             rootComp = design.activeComponent
-            # -----------------------
-            if useSTEP:
-                stpFileName = getFileName()          
-                resultFilename = exportFile(tempComponent.component, stpFileName)
-                importManager = app.importManager
-                stpOptions = importManager.createSTEPImportOptions(stpFileName)
-                tempComponent.deleteMe()
-                temp2Component = design.rootComponent.occurrences.addNewComponent(adsk.core.Matrix3D.create()) 
-                # Import step file to root/active component
-                importManager.importToTarget(stpOptions, temp2Component.component)  
-                tempComponent = temp2Component.component.occurrences.item(0)
             # -----------------------
             base_ = rootComp.features.baseFeatures.add()
             if base_.startEdit():
@@ -158,8 +109,6 @@ class FusionAddInExecutedEventHandler(adsk.core.CommandEventHandler):
                     moveFeats.add(moveFeatureInput)  
                 base_.finishEdit()
             tempComponent.deleteMe()
-            if useSTEP:
-                temp2Component.deleteMe()
             # -----------------------
         except:
             if ui:
@@ -195,8 +144,6 @@ class FusionAddInCreatedEventHandler(adsk.core.CommandCreatedEventHandler):
             destinations = inputs.addSelectionInput('destinationsSelectInput', 'Destination Sketch Points', 'Basic select command input')
             destinations.addSelectionFilter('SketchPoints')
             destinations.setSelectionLimits(1,9999)  # min,max points required
-            # Create a selection input.
-            isUsingSTEP = inputs.addBoolValueInput('isUsingSTEP', 'Use STEP Import/Export for pattern?', True, '', False)
             # --
             cmd.commandCategoryName = 'fusionCopy'
             cmd.setDialogInitialSize(400, 300)
@@ -217,7 +164,7 @@ def run(context):
             ui.commandDefinitions.itemById('DB2PButtonID').deleteMe()
         # Get the CommandDefinitions collection.
         cmdDefs = ui.commandDefinitions
-        FusionAddInButtonDef = cmdDefs.addButtonDefinition('DB2PButtonID', 'Duplicate Bodies to Points - 007', 'Select a body, a reference point and all the destination points to pattern the body to.\n', './resources')
+        FusionAddInButtonDef = cmdDefs.addButtonDefinition('DB2PButtonID', 'Duplicate Bodies to Points', 'Select a body, a reference point and all the destination points to pattern the body to.\n', './resources')
         onAddInCreated = FusionAddInCreatedEventHandler()
         FusionAddInButtonDef.commandCreated.add(onAddInCreated)
         handlers.append(onAddInCreated)
